@@ -17,7 +17,7 @@ Then visit http://localhost:8080
 - Loads 40+ medicine lots (default **PUB-01**)
 - Splits active stock into **Expired**, **within 30 days**, **within 90 days**, and **Safe**
 - Shows **Value at Risk (৳)** on each card; judges score expired + 0–30 day totals
-- **Return** sends a lot to the distributor list and removes it from active counts and values
+- **Return** sends a lot to the distributor list and removes it from active counts and values.
 
 ## Load a case
 
