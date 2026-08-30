@@ -196,51 +196,6 @@
     if (value != null) el.setAttribute("data-value", value);
   }
 
-  function renderUrgent(data) {
-    var list = $("urgent-list");
-    var banner = $("urgent-banner");
-
-    var expired = data.groups.expired.slice().sort(function (a, b) {
-      return a.daysLeft - b.daysLeft;
-    });
-    var soon = data.groups.expiring_30.slice().sort(function (a, b) {
-      return a.daysLeft - b.daysLeft;
-    });
-
-    var lines = [];
-    if (expired[0]) {
-      var gone = Math.abs(expired[0].daysLeft);
-      lines.push(
-        expired[0].name +
-          " - " +
-          expired[0].quantity +
-          " units expired " +
-          gone +
-          " day" +
-          (gone === 1 ? "" : "s") +
-          " ago."
-      );
-    }
-    if (soon[0]) {
-      lines.push(
-        soon[0].name +
-          " - " +
-          soon[0].quantity +
-          " units " +
-          (soon[0].daysLeft === 0
-            ? "expiring today."
-            : "expiring in " + soon[0].daysLeft + " day" + (soon[0].daysLeft === 1 ? "" : "s") + ".")
-      );
-    }
-
-    list.innerHTML = lines
-      .map(function (line) {
-        return "<li>" + escapeHtml(line) + "</li>";
-      })
-      .join("");
-    banner.style.display = lines.length ? "flex" : "none";
-  }
-
   function rowHtml(row, withActions, withTestids) {
     var meta = statusMeta(row.bucket);
     var rowTest = withTestids ? ' data-testid="item-row-' + escapeHtml(row.id) + '"' : "";
@@ -496,7 +451,6 @@
       data.valuesPaisa.expired + data.valuesPaisa.expiring_30
     );
 
-    renderUrgent(data);
     renderRegistry(data);
     renderInventory(data);
     renderReturned(data);
@@ -521,17 +475,7 @@
     return "M" + String(max + 1).padStart(3, "0");
   }
 
-  function fillCaseSelect() {
-    $("case-select").innerHTML = allCases()
-      .map(function (c) {
-        return '<option value="' + escapeHtml(c.case_id) + '">' + escapeHtml(c.case_id) + "</option>";
-      })
-      .join("");
-  }
-
   function boot() {
-    fillCaseSelect();
-
     document.querySelectorAll(".nav-item").forEach(function (btn) {
       btn.addEventListener("click", function () {
         setView(btn.getAttribute("data-view"));
@@ -594,14 +538,6 @@
       render();
     });
 
-    $("btn-sort-now").addEventListener("click", function () {
-      state.statusFilter = "urgent";
-      $("status-filter").value = "urgent";
-      state.page = 1;
-      setView("dashboard");
-      render();
-    });
-
     $("btn-add").addEventListener("click", function () {
       $("add-modal").hidden = false;
     });
@@ -645,22 +581,6 @@
       }
     });
 
-    $("btn-load-case").addEventListener("click", function () {
-      applyCase(findCase($("case-select").value));
-      setView("dashboard");
-      showToast("Case loaded", $("case-select").value);
-    });
-
-    $("btn-paste-case").addEventListener("click", function () {
-      try {
-        applyCase(JSON.parse($("case-paste").value));
-        setView("dashboard");
-        showToast("Pasted case applied", "Stock and returned lots were refreshed.");
-      } catch (err) {
-        showToast("Could not read that JSON", "Check for a missing comma or bracket.");
-      }
-    });
-
     window.applyCase = applyCase;
     window.getSnapshot = getSnapshot;
     window.P02App = {
@@ -673,7 +593,6 @@
     var params = new URLSearchParams(location.search);
     var requested = params.get("case") || "PUB-01";
     applyCase(findCase(requested) || allCases()[0]);
-    if ($("case-select") && findCase(requested)) $("case-select").value = requested;
   }
 
   document.addEventListener("DOMContentLoaded", boot);
