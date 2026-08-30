@@ -16,6 +16,7 @@
     search: "",
     statusFilter: "all",
     page: 1,
+    invPage: 1,
     returnedPage: 1,
     view: "dashboard",
   };
@@ -121,6 +122,7 @@
     state.search = "";
     state.statusFilter = "all";
     state.page = 1;
+    state.invPage = 1;
     state.returnedPage = 1;
     if ($("search-input")) $("search-input").value = "";
     if ($("status-filter")) $("status-filter").value = "all";
@@ -265,25 +267,7 @@
     });
   }
 
-  function paintPageNums(container, page, pages, attr) {
-    if (!container) return;
-    container.innerHTML = "";
-    var maxBtns = Math.min(pages, 7);
-    var start = Math.max(1, Math.min(page - 3, pages - maxBtns + 1));
-    if (pages <= 7) start = 1;
-    for (var i = 0; i < maxBtns; i++) {
-      var n = start + i;
-      if (n > pages) break;
-      var b = document.createElement("button");
-      b.type = "button";
-      b.className = "page-num" + (n === page ? " is-active" : "");
-      b.textContent = String(n);
-      b.setAttribute(attr, String(n));
-      container.appendChild(b);
-    }
-  }
-
-  function renderPagedTable(tbody, rows, page, withTestids, emptyMsg, colspan) {
+  function renderPagedTable(tbody, rows, page, withActions, withTestids, emptyMsg, colspan) {
     var total = rows.length;
     var pages = Math.max(1, Math.ceil(total / PAGE_SIZE) || 1);
     if (page > pages) page = pages;
@@ -298,11 +282,12 @@
     } else {
       tbody.innerHTML = rows
         .map(function (row) {
-          var html = rowHtml(row, false, withTestids);
+          var html = rowHtml(row, withActions, withTestids);
           if (!visible[row.id]) html = html.replace("<tr ", '<tr class="is-hidden-row" ');
           return html;
         })
         .join("");
+      if (withActions) bindRowActions(tbody);
     }
 
     var from = total === 0 ? 0 : start + 1;
@@ -342,7 +327,6 @@
 
     $("page-prev").disabled = state.page <= 1;
     $("page-next").disabled = state.page >= pages;
-    paintPageNums($("page-nums"), state.page, pages, "data-page");
   }
 
   function renderReturned(data) {
@@ -353,6 +337,7 @@
       dash,
       rows,
       state.returnedPage,
+      false,
       true,
       "Nothing sent back yet. Press Return on a shelf row to move it here.",
       5
@@ -362,6 +347,7 @@
       inv,
       rows,
       state.returnedPage,
+      false,
       false,
       "Nothing sent back yet. Press Return on a shelf row to move it here.",
       5
@@ -382,23 +368,26 @@
     if ($("returned-page-next")) $("returned-page-next").disabled = state.returnedPage >= meta.pages;
     if ($("returned-inv-page-prev")) $("returned-inv-page-prev").disabled = state.returnedPage <= 1;
     if ($("returned-inv-page-next")) $("returned-inv-page-next").disabled = state.returnedPage >= meta.pages;
-    paintPageNums($("returned-page-nums"), state.returnedPage, meta.pages, "data-ret-page");
-    paintPageNums($("returned-inv-page-nums"), state.returnedPage, meta.pages, "data-ret-page");
   }
 
   function renderInventory(data) {
     var inv = $("inventory-body");
     var rows = activeRows(data);
-    if (!rows.length) {
-      inv.innerHTML = '<tr><td class="empty-cell" colspan="6">No active stock on the shelf.</td></tr>';
-    } else {
-      inv.innerHTML = rows
-        .map(function (row) {
-          return rowHtml(row, true, false);
-        })
-        .join("");
-      bindRowActions(inv);
+    var meta = renderPagedTable(
+      inv,
+      rows,
+      state.invPage,
+      true,
+      false,
+      "No active stock on the shelf.",
+      6
+    );
+    state.invPage = meta.page;
+    if ($("inv-page-info")) {
+      $("inv-page-info").textContent = "Showing " + meta.from + "-" + meta.to + " of " + meta.total;
     }
+    if ($("inv-page-prev")) $("inv-page-prev").disabled = state.invPage <= 1;
+    if ($("inv-page-next")) $("inv-page-next").disabled = state.invPage >= meta.pages;
   }
 
   function showDetail(id) {
@@ -506,13 +495,6 @@
       render();
     });
 
-    $("page-nums").addEventListener("click", function (e) {
-      var btn = e.target.closest("[data-page]");
-      if (!btn) return;
-      state.page = Number(btn.getAttribute("data-page"));
-      render();
-    });
-
     function shiftReturnedPage(delta) {
       state.returnedPage += delta;
       if (state.returnedPage < 1) state.returnedPage = 1;
@@ -531,10 +513,15 @@
     $("returned-inv-page-next").addEventListener("click", function () {
       shiftReturnedPage(1);
     });
-    document.addEventListener("click", function (e) {
-      var btn = e.target.closest("[data-ret-page]");
-      if (!btn) return;
-      state.returnedPage = Number(btn.getAttribute("data-ret-page"));
+
+    $("inv-page-prev").addEventListener("click", function () {
+      if (state.invPage > 1) {
+        state.invPage -= 1;
+        render();
+      }
+    });
+    $("inv-page-next").addEventListener("click", function () {
+      state.invPage += 1;
       render();
     });
 
