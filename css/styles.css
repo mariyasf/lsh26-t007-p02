@@ -781,6 +781,23 @@ textarea {
   border-color: #c2410c;
 }
 
+.btn-undo {
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  color: #334155;
+  border-radius: 7px;
+  padding: 5px 10px;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btn-undo:hover {
+  background: #e2e8f0;
+  border-color: #94a3b8;
+}
+
 .table-foot {
   display: flex;
   justify-content: space-between;

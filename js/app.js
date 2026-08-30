@@ -153,6 +153,25 @@
     showReturnedList();
   }
 
+  function undoReturn(id) {
+    var idx = state.returnedIds.indexOf(id);
+    if (idx === -1) return;
+    var item = null;
+    state.items.forEach(function (row) {
+      if (row.id === id) item = row;
+    });
+    state.returnedIds.splice(idx, 1);
+    render();
+    var name = item ? item.name : id;
+    var batch = item ? item.batch : "";
+    showToast(
+      name + " moved back to the shelf",
+      batch
+        ? "Batch " + batch + " rejoined the active groups and taka totals."
+        : "It rejoined the active groups and taka totals."
+    );
+  }
+
   function statusMeta(bucket) {
     if (bucket === "expired") return { text: "Expired", cls: "pill-expired" };
     if (bucket === "expiring_30") return { text: "Expiring Soon", cls: "pill-soon" };
@@ -205,10 +224,17 @@
 
     var actionCell = "";
     if (withActions) {
+      var undoTest = withTestids ? ' data-testid="btn-undo-' + escapeHtml(row.id) + '"' : "";
       actionCell =
         "<td>" +
         (row.returned
-          ? ""
+          ? '<div class="actions">' +
+            '<button class="btn-undo"' +
+            undoTest +
+            ' data-id="' +
+            escapeHtml(row.id) +
+            '" type="button" title="Move back to the shelf">Undo</button>' +
+            "</div>"
           : '<div class="actions">' +
             '<button class="ghost btn-view" data-id="' +
             escapeHtml(row.id) +
@@ -263,6 +289,11 @@
     root.querySelectorAll(".btn-view").forEach(function (btn) {
       btn.addEventListener("click", function () {
         showDetail(btn.getAttribute("data-id"));
+      });
+    });
+    root.querySelectorAll(".btn-undo").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        undoReturn(btn.getAttribute("data-id"));
       });
     });
   }
@@ -337,20 +368,20 @@
       dash,
       rows,
       state.returnedPage,
-      false,
+      true,
       true,
       "Nothing sent back yet. Press Return on a shelf row to move it here.",
-      5
+      6
     );
     state.returnedPage = meta.page;
     renderPagedTable(
       inv,
       rows,
       state.returnedPage,
-      false,
+      true,
       false,
       "Nothing sent back yet. Press Return on a shelf row to move it here.",
-      5
+      6
     );
 
     setText("count-returned-inv", String(rows.length));
@@ -572,6 +603,7 @@
     window.getSnapshot = getSnapshot;
     window.P02App = {
       markReturned: markReturned,
+      undoReturn: undoReturn,
       getState: function () {
         return state;
       },
