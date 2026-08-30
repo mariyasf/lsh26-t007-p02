@@ -2,6 +2,12 @@
   var PAGE_SIZE = 5;
   var MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
+  var EYE_SVG =
+    '<svg width="16" height="16" viewBox="0 0 24 24" fill="none">' +
+    '<path d="M2.8 12S6.2 6.8 12 6.8 21.2 12 21.2 12 17.8 17.2 12 17.2 2.8 12 2.8 12Z" stroke="currentColor" stroke-width="1.7"/>' +
+    '<circle cx="12" cy="12" r="2.6" stroke="currentColor" stroke-width="1.7"/>' +
+    "</svg>";
+
   var state = {
     caseId: "",
     today: "2026-08-16",
@@ -17,13 +23,18 @@
     return document.getElementById(id);
   }
 
+  function escapeHtml(s) {
+    return String(s)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
   function formatPrettyDate(iso) {
     if (!iso) return "—";
-    var parts = iso.split("-");
-    var y = Number(parts[0]);
-    var m = Number(parts[1]);
-    var d = Number(parts[2]);
-    return MONTHS[m - 1] + " " + d + ", " + y;
+    var parts = String(iso).split("-");
+    return MONTHS[Number(parts[1]) - 1] + " " + Number(parts[2]) + ", " + Number(parts[0]);
   }
 
   function snapshot() {
@@ -56,6 +67,50 @@
     });
   }
 
+  function showToast(title, sub, onView) {
+    var host = $("toast-host");
+    if (!host) return;
+    var toast = document.createElement("div");
+    toast.className = "toast";
+    toast.innerHTML =
+      '<div class="toast-ico" aria-hidden="true">' +
+      '<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M6 12.2 10.2 16.5 18 8" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
+      "</div>" +
+      '<div class="toast-copy">' +
+      '<div class="toast-title">' +
+      escapeHtml(title) +
+      "</div>" +
+      (sub ? '<div class="toast-sub">' + escapeHtml(sub) + "</div>" : "") +
+      (onView ? '<button class="toast-action" type="button">View returned list</button>' : "") +
+      "</div>" +
+      '<button class="toast-close" type="button" aria-label="Dismiss">×</button>';
+
+    function remove() {
+      if (toast.classList.contains("is-out")) return;
+      toast.classList.add("is-out");
+      setTimeout(function () {
+        if (toast.parentNode) toast.parentNode.removeChild(toast);
+      }, 180);
+    }
+
+    toast.querySelector(".toast-close").addEventListener("click", remove);
+    var action = toast.querySelector(".toast-action");
+    if (action && onView) {
+      action.addEventListener("click", function () {
+        onView();
+        remove();
+      });
+    }
+    host.appendChild(toast);
+    setTimeout(remove, 5200);
+  }
+
+  function showReturnedList() {
+    setView("dashboard");
+    var panel = $("returned-panel");
+    if (panel) panel.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
   function applyCase(caseObj) {
     if (!caseObj) return snapshot();
     state.caseId = caseObj.case_id || "";
@@ -65,10 +120,8 @@
     state.search = "";
     state.statusFilter = "all";
     state.page = 1;
-    var search = $("search-input");
-    var filter = $("status-filter");
-    if (search) search.value = "";
-    if (filter) filter.value = "all";
+    if ($("search-input")) $("search-input").value = "";
+    if ($("status-filter")) $("status-filter").value = "all";
     render();
     return snapshot();
   }
@@ -78,10 +131,21 @@
   }
 
   function markReturned(id) {
-    if (state.returnedIds.indexOf(id) === -1) {
-      state.returnedIds.push(id);
-      render();
-    }
+    if (state.returnedIds.indexOf(id) !== -1) return;
+    var item = null;
+    state.items.forEach(function (row) {
+      if (row.id === id) item = row;
+    });
+    state.returnedIds.push(id);
+    render();
+    var name = item ? item.name : id;
+    var batch = item ? item.batch : "";
+    showToast(
+      name + " returned to distributor",
+      batch ? "Batch " + batch + " left the active groups and taka totals." : "It left the active groups and taka totals.",
+      showReturnedList
+    );
+    showReturnedList();
   }
 
   function statusMeta(bucket) {
@@ -132,86 +196,83 @@
   function renderUrgent(data) {
     var list = $("urgent-list");
     var banner = $("urgent-banner");
+
     var expired = data.groups.expired.slice().sort(function (a, b) {
       return a.daysLeft - b.daysLeft;
     });
     var soon = data.groups.expiring_30.slice().sort(function (a, b) {
       return a.daysLeft - b.daysLeft;
     });
-    var bits = [];
+
+    var lines = [];
     if (expired[0]) {
-      var d = Math.abs(expired[0].daysLeft);
-      bits.push(
+      var gone = Math.abs(expired[0].daysLeft);
+      lines.push(
         expired[0].name +
           " - " +
           expired[0].quantity +
-          " units " +
-          (d === 0 ? "expired today" : "expired " + d + " day" + (d === 1 ? "" : "s") + " ago")
+          " units expired " +
+          gone +
+          " day" +
+          (gone === 1 ? "" : "s") +
+          " ago."
       );
     }
     if (soon[0]) {
-      bits.push(
+      lines.push(
         soon[0].name +
           " - " +
           soon[0].quantity +
-          " units expiring in " +
-          soon[0].daysLeft +
-          " day" +
-          (soon[0].daysLeft === 1 ? "" : "s")
+          " units " +
+          (soon[0].daysLeft === 0
+            ? "expiring today."
+            : "expiring in " + soon[0].daysLeft + " day" + (soon[0].daysLeft === 1 ? "" : "s") + ".")
       );
     }
-    list.innerHTML = bits
+
+    list.innerHTML = lines
       .map(function (line) {
         return "<li>" + escapeHtml(line) + "</li>";
       })
       .join("");
-    banner.style.display = bits.length ? "flex" : "none";
-  }
-
-  function escapeHtml(s) {
-    return String(s)
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;");
+    banner.style.display = lines.length ? "flex" : "none";
   }
 
   function rowHtml(row, withActions, withTestids) {
     var meta = statusMeta(row.bucket);
-    var returnTest = withTestids
-      ? ' data-testid="btn-return-' + escapeHtml(row.id) + '"'
-      : "";
-    var rowTest = withTestids
-      ? ' data-testid="item-row-' + escapeHtml(row.id) + '"'
-      : "";
-    var action =
-      withActions && !row.returned
-        ? '<div class="actions">' +
-          '<button class="ghost btn-view" data-id="' +
-          escapeHtml(row.id) +
-          '" title="View" type="button" aria-label="View">' +
-          '<svg width="16" height="16" viewBox="0 0 24 24" fill="none">' +
-          '<path d="M2.8 12S6.2 6.8 12 6.8 21.2 12 21.2 12 17.8 17.2 12 17.2 2.8 12 2.8 12Z" stroke="currentColor" stroke-width="1.7"/>' +
-          '<circle cx="12" cy="12" r="2.6" stroke="currentColor" stroke-width="1.7"/>' +
-          "</svg></button>" +
-          '<button class="btn-return"' +
-          returnTest +
-          ' data-id="' +
-          escapeHtml(row.id) +
-          '" type="button">Return</button>' +
-          "</div>"
-        : "";
+    var rowTest = withTestids ? ' data-testid="item-row-' + escapeHtml(row.id) + '"' : "";
+    var returnTest = withTestids ? ' data-testid="btn-return-' + escapeHtml(row.id) + '"' : "";
+
+    var actionCell = "";
+    if (withActions) {
+      actionCell =
+        "<td>" +
+        (row.returned
+          ? ""
+          : '<div class="actions">' +
+            '<button class="ghost btn-view" data-id="' +
+            escapeHtml(row.id) +
+            '" type="button" title="View details" aria-label="View details">' +
+            EYE_SVG +
+            "</button>" +
+            '<button class="btn-return"' +
+            returnTest +
+            ' data-id="' +
+            escapeHtml(row.id) +
+            '" type="button">Return</button>' +
+            "</div>") +
+        "</td>";
+    }
+
     return (
       "<tr" +
       rowTest +
       ' data-bucket="' +
       row.bucket +
       '">' +
-      '<td><div class="med-name">' +
+      '<td><span class="med-name">' +
       escapeHtml(row.name) +
-      '</div><div class="med-sub">' +
-      escapeHtml(row.company) +
-      "</div></td>" +
+      "</span></td>" +
       "<td>" +
       escapeHtml(row.batch) +
       "</td>" +
@@ -228,7 +289,7 @@
       '">' +
       meta.text +
       "</span></td>" +
-      (withActions ? "<td>" + action + "</td>" : "") +
+      actionCell +
       "</tr>"
     );
   }
@@ -251,61 +312,75 @@
     var total = rows.length;
     var pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
     if (state.page > pages) state.page = pages;
+
     var start = (state.page - 1) * PAGE_SIZE;
-    var visibleIds = {};
+    var visible = {};
     rows.slice(start, start + PAGE_SIZE).forEach(function (row) {
-      visibleIds[row.id] = true;
+      visible[row.id] = true;
     });
 
     var body = $("registry-body");
-    body.innerHTML = rows
-      .map(function (row) {
-        var html = rowHtml(row, true, true);
-        if (!visibleIds[row.id]) {
-          html = html.replace("<tr ", '<tr class="is-hidden-row" ');
-        }
-        return html;
-      })
-      .join("");
-    bindRowActions(body);
+    if (!total) {
+      body.innerHTML = '<tr><td class="empty-cell" colspan="6">No medicines match this filter.</td></tr>';
+    } else {
+      body.innerHTML = rows
+        .map(function (row) {
+          var html = rowHtml(row, true, true);
+          if (!visible[row.id]) html = html.replace("<tr ", '<tr class="is-hidden-row" ');
+          return html;
+        })
+        .join("");
+      bindRowActions(body);
+    }
 
     var from = total === 0 ? 0 : start + 1;
     var to = Math.min(start + PAGE_SIZE, total);
     $("page-info").textContent = "Showing " + from + "-" + to + " of " + total;
 
-    var nums = $("page-nums");
-    nums.innerHTML = "";
-    for (var i = 1; i <= pages && i <= 6; i++) {
-      var b = document.createElement("button");
-      b.type = "button";
-      b.className = "page-num" + (i === state.page ? " is-active" : "");
-      b.textContent = String(i);
-      b.setAttribute("data-page", String(i));
-      nums.appendChild(b);
-    }
     $("page-prev").disabled = state.page <= 1;
     $("page-next").disabled = state.page >= pages;
   }
 
-  function renderInventory(data) {
-    var inv = $("inventory-body");
-    inv.innerHTML = activeRows(data)
+  function fillReturnedTable(tbody, rows, withTestids) {
+    if (!tbody) return;
+    if (!rows.length) {
+      tbody.innerHTML =
+        '<tr><td class="empty-cell" colspan="5">Nothing sent back yet. Press Return on a row to move it here.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = rows
       .map(function (row) {
-        return rowHtml(row, true, false);
+        return rowHtml(row, false, withTestids);
       })
       .join("");
-    bindRowActions(inv);
+  }
 
-    var ret = $("returned-body");
-    if (!data.groups.returned.length) {
-      ret.innerHTML =
-        '<tr><td colspan="5" style="color:#6b7280">No lots have been returned to the distributor.</td></tr>';
+  function renderReturned(data) {
+    var rows = data.groups.returned;
+    fillReturnedTable($("returned-body"), rows, true);
+    fillReturnedTable($("returned-body-inv"), rows, false);
+    setText("count-returned-inv", String(rows.length));
+    var badge = $("nav-returned-badge");
+    if (badge) {
+      badge.textContent = String(rows.length);
+      badge.hidden = rows.length === 0;
+    }
+    var panel = $("returned-panel");
+    if (panel) panel.classList.toggle("is-empty", rows.length === 0);
+  }
+
+  function renderInventory(data) {
+    var inv = $("inventory-body");
+    var rows = activeRows(data);
+    if (!rows.length) {
+      inv.innerHTML = '<tr><td class="empty-cell" colspan="6">No active stock on the shelf.</td></tr>';
     } else {
-      ret.innerHTML = data.groups.returned
+      inv.innerHTML = rows
         .map(function (row) {
-          return rowHtml(row, false, true);
+          return rowHtml(row, true, false);
         })
         .join("");
+      bindRowActions(inv);
     }
   }
 
@@ -316,35 +391,18 @@
       if (item.id === id) row = item;
     });
     if (!row) return;
+
     $("detail-title").textContent = row.name;
     $("detail-body").innerHTML =
-      "<dt>ID</dt><dd>" +
-      escapeHtml(row.id) +
-      "</dd>" +
-      "<dt>Company</dt><dd>" +
-      escapeHtml(row.company) +
-      "</dd>" +
-      "<dt>Batch</dt><dd>" +
-      escapeHtml(row.batch) +
-      "</dd>" +
-      "<dt>Quantity</dt><dd>" +
-      row.quantity +
-      "</dd>" +
-      "<dt>Unit price</dt><dd>৳" +
-      escapeHtml(String(row.unit_price_bdt)) +
-      "</dd>" +
-      "<dt>Line value</dt><dd>" +
-      P02.formatTaka(row.valuePaisa) +
-      "</dd>" +
-      "<dt>Expiry</dt><dd>" +
-      formatPrettyDate(row.expiry) +
-      "</dd>" +
-      "<dt>Days left</dt><dd>" +
-      row.daysLeft +
-      "</dd>" +
-      "<dt>Status</dt><dd>" +
-      statusMeta(row.bucket).text +
-      "</dd>";
+      "<dt>ID</dt><dd>" + escapeHtml(row.id) + "</dd>" +
+      "<dt>Company</dt><dd>" + escapeHtml(row.company || "—") + "</dd>" +
+      "<dt>Batch</dt><dd>" + escapeHtml(row.batch) + "</dd>" +
+      "<dt>Quantity</dt><dd>" + row.quantity.toLocaleString("en-US") + "</dd>" +
+      "<dt>Unit price</dt><dd>৳" + escapeHtml(String(row.unit_price_bdt)) + "</dd>" +
+      "<dt>Line value</dt><dd>" + P02.formatTaka(row.valuePaisa) + "</dd>" +
+      "<dt>Expiry</dt><dd>" + formatPrettyDate(row.expiry) + "</dd>" +
+      "<dt>Days left</dt><dd>" + row.daysLeft + "</dd>" +
+      "<dt>Status</dt><dd>" + statusMeta(row.bucket).text + "</dd>";
     $("detail-modal").hidden = false;
   }
 
@@ -359,11 +417,7 @@
     setText("count-returned", String(data.counts.returned), String(data.counts.returned));
 
     setText("value-expired", P02.formatTaka(data.valuesPaisa.expired), data.valuesTaka.expired);
-    setText(
-      "value-expiring-soon",
-      P02.formatTaka(data.valuesPaisa.expiring_30),
-      data.valuesTaka.expiring_30
-    );
+    setText("value-expiring-soon", P02.formatTaka(data.valuesPaisa.expiring_30), data.valuesTaka.expiring_30);
     $("value-expiring-90").textContent = P02.formatTaka(data.valuesPaisa.expiring_90);
     $("value-safe").textContent = P02.formatTaka(data.valuesPaisa.safe);
 
@@ -383,6 +437,7 @@
     renderUrgent(data);
     renderRegistry(data);
     renderInventory(data);
+    renderReturned(data);
   }
 
   function setView(name) {
@@ -401,13 +456,11 @@
       var n = Number(String(item.id).replace(/\D/g, ""));
       if (n > max) max = n;
     });
-    var next = max + 1;
-    return "M" + String(next).padStart(3, "0");
+    return "M" + String(max + 1).padStart(3, "0");
   }
 
   function fillCaseSelect() {
-    var select = $("case-select");
-    select.innerHTML = allCases()
+    $("case-select").innerHTML = allCases()
       .map(function (c) {
         return '<option value="' + escapeHtml(c.case_id) + '">' + escapeHtml(c.case_id) + "</option>";
       })
@@ -441,14 +494,9 @@
         render();
       }
     });
+
     $("page-next").addEventListener("click", function () {
       state.page += 1;
-      render();
-    });
-    $("page-nums").addEventListener("click", function (e) {
-      var btn = e.target.closest("[data-page]");
-      if (!btn) return;
-      state.page = Number(btn.getAttribute("data-page"));
       render();
     });
 
@@ -463,9 +511,11 @@
     $("btn-add").addEventListener("click", function () {
       $("add-modal").hidden = false;
     });
+
     $("btn-add-cancel").addEventListener("click", function () {
       $("add-modal").hidden = true;
     });
+
     $("add-form").addEventListener("submit", function (e) {
       e.preventDefault();
       var fd = new FormData($("add-form"));
@@ -481,32 +531,55 @@
       $("add-form").reset();
       $("add-modal").hidden = true;
       render();
+      showToast("Medicine added to the shelf", String(fd.get("name")));
     });
+
     $("btn-detail-close").addEventListener("click", function () {
       $("detail-modal").hidden = true;
+    });
+
+    document.querySelectorAll(".modal").forEach(function (modal) {
+      modal.addEventListener("click", function (e) {
+        if (e.target === modal) modal.hidden = true;
+      });
+    });
+
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape") {
+        $("add-modal").hidden = true;
+        $("detail-modal").hidden = true;
+      }
     });
 
     $("btn-load-case").addEventListener("click", function () {
       applyCase(findCase($("case-select").value));
       setView("dashboard");
+      showToast("Case loaded", $("case-select").value);
     });
+
     $("btn-paste-case").addEventListener("click", function () {
       try {
         applyCase(JSON.parse($("case-paste").value));
         setView("dashboard");
+        showToast("Pasted case applied", "Stock and returned lots were refreshed.");
       } catch (err) {
-        alert("Invalid JSON");
+        showToast("Could not read that JSON", "Check for a missing comma or bracket.");
       }
     });
 
     window.applyCase = applyCase;
     window.getSnapshot = getSnapshot;
-    window.P02App = { markReturned: markReturned, getState: function () { return state; } };
+    window.P02App = {
+      markReturned: markReturned,
+      getState: function () {
+        return state;
+      },
+    };
 
     var params = new URLSearchParams(location.search);
     var requested = params.get("case") || "PUB-01";
     applyCase(findCase(requested) || allCases()[0]);
-    if ($("case-select") && requested) $("case-select").value = requested;
+    if ($("case-select") && findCase(requested)) $("case-select").value = requested;
   }
 
   document.addEventListener("DOMContentLoaded", boot);
