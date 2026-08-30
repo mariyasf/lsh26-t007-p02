@@ -54,6 +54,14 @@
       "evidence_paths_or_commits": [
         "https://github.com/mun7594/lsh26-t007-p02"
       ]
+    },
+    {
+      "registered_name": "Sakawat Hossain",
+      "github_username": "shakawatnezzer",
+      "major_contribution": "UI design and QA.",
+      "evidence_paths_or_commits": [
+        "https://github.com/shakawatnezzer/lsh26-t007-p02"
+      ]
     }
   ],
   "major_design_decisions": [
@@ -73,7 +81,7 @@
   ],
   "ai_tools_used": [
     {
-      "tool": "Cursor",
+      "tool": "Cursor, Google Stich, Claude, ChatGPT",
       "used_for": "Scaffolding the vanilla app, MediStock layout, classify/paisa logic, return list, pagination and judge hooks from the P02 brief and published cases.",
       "how_output_was_verified": "Checked PUB-01 counts and values against the stated buckets (including day 0/30/31/90/91 boundaries), confirmed returned lots leave active counts and taka totals, and walked Return, returned pagination and Settings case load in the running UI."
     }
