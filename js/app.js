@@ -16,6 +16,7 @@
     search: "",
     statusFilter: "all",
     page: 1,
+    returnedPage: 1,
     view: "dashboard",
   };
 
@@ -120,6 +121,7 @@
     state.search = "";
     state.statusFilter = "all";
     state.page = 1;
+    state.returnedPage = 1;
     if ($("search-input")) $("search-input").value = "";
     if ($("status-filter")) $("status-filter").value = "all";
     render();
@@ -137,6 +139,7 @@
       if (row.id === id) item = row;
     });
     state.returnedIds.push(id);
+    state.returnedPage = Math.max(1, Math.ceil(state.returnedIds.length / PAGE_SIZE));
     render();
     var name = item ? item.name : id;
     var batch = item ? item.batch : "";
@@ -307,6 +310,51 @@
     });
   }
 
+  function paintPageNums(container, page, pages, attr) {
+    if (!container) return;
+    container.innerHTML = "";
+    var maxBtns = Math.min(pages, 7);
+    var start = Math.max(1, Math.min(page - 3, pages - maxBtns + 1));
+    if (pages <= 7) start = 1;
+    for (var i = 0; i < maxBtns; i++) {
+      var n = start + i;
+      if (n > pages) break;
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "page-num" + (n === page ? " is-active" : "");
+      b.textContent = String(n);
+      b.setAttribute(attr, String(n));
+      container.appendChild(b);
+    }
+  }
+
+  function renderPagedTable(tbody, rows, page, withTestids, emptyMsg, colspan) {
+    var total = rows.length;
+    var pages = Math.max(1, Math.ceil(total / PAGE_SIZE) || 1);
+    if (page > pages) page = pages;
+    var start = (page - 1) * PAGE_SIZE;
+    var visible = {};
+    rows.slice(start, start + PAGE_SIZE).forEach(function (row) {
+      visible[row.id] = true;
+    });
+
+    if (!total) {
+      tbody.innerHTML = '<tr><td class="empty-cell" colspan="' + colspan + '">' + emptyMsg + "</td></tr>";
+    } else {
+      tbody.innerHTML = rows
+        .map(function (row) {
+          var html = rowHtml(row, false, withTestids);
+          if (!visible[row.id]) html = html.replace("<tr ", '<tr class="is-hidden-row" ');
+          return html;
+        })
+        .join("");
+    }
+
+    var from = total === 0 ? 0 : start + 1;
+    var to = Math.min(start + PAGE_SIZE, total);
+    return { total: total, pages: pages, page: page, from: from, to: to };
+  }
+
   function renderRegistry(data) {
     var rows = filteredRows(data);
     var total = rows.length;
@@ -339,34 +387,48 @@
 
     $("page-prev").disabled = state.page <= 1;
     $("page-next").disabled = state.page >= pages;
-  }
-
-  function fillReturnedTable(tbody, rows, withTestids) {
-    if (!tbody) return;
-    if (!rows.length) {
-      tbody.innerHTML =
-        '<tr><td class="empty-cell" colspan="5">Nothing sent back yet. Press Return on a row to move it here.</td></tr>';
-      return;
-    }
-    tbody.innerHTML = rows
-      .map(function (row) {
-        return rowHtml(row, false, withTestids);
-      })
-      .join("");
+    paintPageNums($("page-nums"), state.page, pages, "data-page");
   }
 
   function renderReturned(data) {
     var rows = data.groups.returned;
-    fillReturnedTable($("returned-body"), rows, true);
-    fillReturnedTable($("returned-body-inv"), rows, false);
+    var dash = $("returned-body");
+    var inv = $("returned-body-inv");
+    var meta = renderPagedTable(
+      dash,
+      rows,
+      state.returnedPage,
+      true,
+      "Nothing sent back yet. Press Return on a shelf row to move it here.",
+      5
+    );
+    state.returnedPage = meta.page;
+    renderPagedTable(
+      inv,
+      rows,
+      state.returnedPage,
+      false,
+      "Nothing sent back yet. Press Return on a shelf row to move it here.",
+      5
+    );
+
     setText("count-returned-inv", String(rows.length));
     var badge = $("nav-returned-badge");
     if (badge) {
       badge.textContent = String(rows.length);
       badge.hidden = rows.length === 0;
     }
-    var panel = $("returned-panel");
-    if (panel) panel.classList.toggle("is-empty", rows.length === 0);
+
+    var info = "Showing " + meta.from + "-" + meta.to + " of " + meta.total;
+    if ($("returned-page-info")) $("returned-page-info").textContent = info;
+    if ($("returned-inv-page-info")) $("returned-inv-page-info").textContent = info;
+
+    if ($("returned-page-prev")) $("returned-page-prev").disabled = state.returnedPage <= 1;
+    if ($("returned-page-next")) $("returned-page-next").disabled = state.returnedPage >= meta.pages;
+    if ($("returned-inv-page-prev")) $("returned-inv-page-prev").disabled = state.returnedPage <= 1;
+    if ($("returned-inv-page-next")) $("returned-inv-page-next").disabled = state.returnedPage >= meta.pages;
+    paintPageNums($("returned-page-nums"), state.returnedPage, meta.pages, "data-ret-page");
+    paintPageNums($("returned-inv-page-nums"), state.returnedPage, meta.pages, "data-ret-page");
   }
 
   function renderInventory(data) {
@@ -497,6 +559,38 @@
 
     $("page-next").addEventListener("click", function () {
       state.page += 1;
+      render();
+    });
+
+    $("page-nums").addEventListener("click", function (e) {
+      var btn = e.target.closest("[data-page]");
+      if (!btn) return;
+      state.page = Number(btn.getAttribute("data-page"));
+      render();
+    });
+
+    function shiftReturnedPage(delta) {
+      state.returnedPage += delta;
+      if (state.returnedPage < 1) state.returnedPage = 1;
+      render();
+    }
+
+    $("returned-page-prev").addEventListener("click", function () {
+      if (state.returnedPage > 1) shiftReturnedPage(-1);
+    });
+    $("returned-page-next").addEventListener("click", function () {
+      shiftReturnedPage(1);
+    });
+    $("returned-inv-page-prev").addEventListener("click", function () {
+      if (state.returnedPage > 1) shiftReturnedPage(-1);
+    });
+    $("returned-inv-page-next").addEventListener("click", function () {
+      shiftReturnedPage(1);
+    });
+    document.addEventListener("click", function (e) {
+      var btn = e.target.closest("[data-ret-page]");
+      if (!btn) return;
+      state.returnedPage = Number(btn.getAttribute("data-ret-page"));
       render();
     });
 

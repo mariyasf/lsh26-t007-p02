@@ -461,13 +461,60 @@ textarea {
 }
 
 .returned-panel {
-  margin-top: 16px;
+  margin-top: 20px;
+  background: #f4f6fb;
+  border: 1px solid #d8dee9;
+  box-shadow: none;
+}
+
+.returned-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px dashed #c5cdd8;
+}
+
+.returned-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: #334155;
+  color: #fff;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.returned-copy {
+  min-width: 0;
+  flex: 1;
+}
+
+.returned-panel .panel-kicker {
+  color: #64748b;
+  margin-bottom: 4px;
+}
+
+.returned-panel .count-chip {
+  background: #334155;
+  color: #fff;
 }
 
 .returned-hint {
-  margin: 0;
+  margin: 6px 0 0;
   font-size: 12.5px;
-  color: var(--muted);
+  color: #64748b;
+  max-width: 52ch;
+}
+
+.grid-returned tbody tr {
+  background: #eef2f7;
+}
+
+.grid-returned tbody td {
+  border-bottom-color: #e2e8f0;
 }
 
 .panel {
@@ -744,8 +791,8 @@ textarea {
   color: #047857;
 }
 .pill-returned {
-  background: #f3f4f6;
-  color: #4b5563;
+  background: #e2e8f0;
+  color: #334155;
 }
 
 .actions {
@@ -823,6 +870,28 @@ textarea {
 .pager button:disabled {
   color: #d1d5db;
   cursor: default;
+}
+
+.page-nums {
+  display: flex;
+  gap: 4px;
+}
+
+.page-num {
+  min-width: 26px;
+  height: 26px;
+  border: 0;
+  background: transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--ink-2);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.page-num.is-active {
+  background: var(--blue-mid);
+  color: #fff;
 }
 
 .count-chip {

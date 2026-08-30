@@ -269,6 +269,7 @@
                 <span id="page-info">Showing 0 of 0</span>
                 <div class="pager">
                   <button type="button" id="page-prev" aria-label="Previous page">‹</button>
+                  <span class="page-nums" id="page-nums"></span>
                   <button type="button" id="page-next" aria-label="Next page">›</button>
                 </div>
               </div>
@@ -276,15 +277,29 @@
           </div>
 
           <section class="panel returned-panel" id="returned-panel">
-            <div class="registry-head">
-              <h2 class="panel-title">
-                Returned to distributor
-                <span class="count-chip" data-testid="count-returned" id="count-returned" data-value="0">0</span>
-              </h2>
-              <p class="returned-hint">These lots left the four active groups and the taka totals.</p>
+            <div class="returned-banner">
+              <div class="returned-icon" aria-hidden="true">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                  <path d="M4 7h11v10H4z" stroke="currentColor" stroke-width="1.8" />
+                  <path d="M15 10h4l2 3v4h-6V10Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
+                  <circle cx="7.5" cy="18.5" r="1.4" fill="currentColor" />
+                  <circle cx="18" cy="18.5" r="1.4" fill="currentColor" />
+                  <path d="M8 12h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+                </svg>
+              </div>
+              <div class="returned-copy">
+                <div class="panel-kicker">Off the shelf</div>
+                <h2 class="panel-title">
+                  Returned to distributor
+                  <span class="count-chip" data-testid="count-returned" id="count-returned" data-value="0">0</span>
+                </h2>
+                <p class="returned-hint">
+                  Not counted in Expired, 30 days, 90 days, or Safe. Taka value is also removed from those cards.
+                </p>
+              </div>
             </div>
             <div class="table-wrap">
-              <table class="grid">
+              <table class="grid grid-returned">
                 <thead>
                   <tr>
                     <th>Medicine Name</th>
@@ -296,6 +311,14 @@
                 </thead>
                 <tbody id="returned-body" data-testid="list-returned"></tbody>
               </table>
+            </div>
+            <div class="table-foot">
+              <span id="returned-page-info">Showing 0 of 0</span>
+              <div class="pager">
+                <button type="button" id="returned-page-prev" aria-label="Previous returned page">‹</button>
+                <span class="page-nums" id="returned-page-nums"></span>
+                <button type="button" id="returned-page-next" aria-label="Next returned page">›</button>
+              </div>
             </div>
           </section>
         </section>
@@ -322,15 +345,27 @@
             </div>
           </section>
 
-          <section class="panel" style="margin-top: 16px">
-            <div class="registry-head">
-              <h2 class="panel-title">
-                Returned to distributor
-                <span class="count-chip" id="count-returned-inv">0</span>
-              </h2>
+          <section class="panel returned-panel" id="returned-panel-inv">
+            <div class="returned-banner">
+              <div class="returned-icon" aria-hidden="true">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                  <path d="M4 7h11v10H4z" stroke="currentColor" stroke-width="1.8" />
+                  <path d="M15 10h4l2 3v4h-6V10Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
+                  <circle cx="7.5" cy="18.5" r="1.4" fill="currentColor" />
+                  <circle cx="18" cy="18.5" r="1.4" fill="currentColor" />
+                </svg>
+              </div>
+              <div class="returned-copy">
+                <div class="panel-kicker">Off the shelf</div>
+                <h2 class="panel-title">
+                  Returned to distributor
+                  <span class="count-chip" id="count-returned-inv">0</span>
+                </h2>
+                <p class="returned-hint">Same returned lots as the dashboard. Not part of active shelf stock.</p>
+              </div>
             </div>
             <div class="table-wrap">
-              <table class="grid">
+              <table class="grid grid-returned">
                 <thead>
                   <tr>
                     <th>Medicine Name</th>
@@ -342,6 +377,14 @@
                 </thead>
                 <tbody id="returned-body-inv"></tbody>
               </table>
+            </div>
+            <div class="table-foot">
+              <span id="returned-inv-page-info">Showing 0 of 0</span>
+              <div class="pager">
+                <button type="button" id="returned-inv-page-prev" aria-label="Previous returned page">‹</button>
+                <span class="page-nums" id="returned-inv-page-nums"></span>
+                <button type="button" id="returned-inv-page-next" aria-label="Next returned page">›</button>
+              </div>
             </div>
           </section>
         </section>
