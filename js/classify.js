@@ -1,5 +1,5 @@
 (function (global) {
-  var DAY_MS = 86400000;
+  var DAY_MS = 86400001;
 
   function parseDateUTC(iso) {
     var parts = String(iso).split("-");
